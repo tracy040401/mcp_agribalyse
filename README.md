@@ -63,43 +63,6 @@ This server also includes predefined prompts for easier interaction:
 
 ---
 
-## ⚙️ Installation
-
-### Using `uv` (recommended)
-
-```bash
-uvx run path/to/your/mcp_server.py
-```
-
-## 🛠️ VS Code Configuration
-
-You can run the server in Claude Desktop or VS Code using this configuration:
-
-### `.vscode/mcp.json`
-
-```json
-{
-  "servers": {
-    "agribalyse": {
-      "command": "python",
-      "args": ["-m", "mcp_server_agribalyse"]
-    }
-  }
-}
-```
-
-### Or with uv:
-```
-{
-  "servers": {
-    "agribalyse": {
-      "command": "uvx",
-      "args": ["run", "src/agribalyse/server.py"]
-    }
-  }
-}
-```
-
 ## 🧪 Debugging
 You can inspect server behavior using:
 ```
