@@ -74,6 +74,23 @@ Or follow logs using:
 mcp dev server.py
 ```
 
+## 🧑‍💻 Client Example
+To test the MCP server using a client, an example client implementation using OpenAI is provided.
+
+Run the client with:
+```
+python client/client.py
+```
+This will execute example prompts and display the server responses, allowing you to observe how the MCP server handles requests.
+
+## 🧪 Running Tests
+To run the test suite using pytest, make sure your virtual environment is activated and then run:
+```
+pytest tests/test_mcp_tools
+```
+This will execute all unit tests and validate the MCP tools integration.
+
+
 ## 👩‍💻 Maintainer
 **Author**: Tracy André
 
