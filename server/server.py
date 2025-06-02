@@ -178,7 +178,6 @@ def read_lines(
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
 
-
 @mcp.tool()
 def get_values(
     field: str,
@@ -232,7 +231,6 @@ def get_values(
         return response.json()
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
-
 
 @mcp.tool()
 def get_metric_agg(
@@ -288,7 +286,6 @@ def get_metric_agg(
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
 
-
 @mcp.tool()
 def get_simple_metrics_agg(
     metrics: Optional[List[str]] = None,
@@ -333,7 +330,6 @@ def get_simple_metrics_agg(
         return response.json()
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
-
 
 @mcp.tool()
 def get_words_agg(
@@ -388,7 +384,6 @@ def get_words_agg(
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
 
-
 @mcp.tool()
 def read_schema(
     mimeType: str = "application/json",
@@ -425,7 +420,6 @@ def read_schema(
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
 
-
 @mcp.tool()
 def read_safe_schema(
     mimeType: str = "application/json",
@@ -461,7 +455,6 @@ def read_safe_schema(
         return response.json()
     except requests.HTTPError as e:
         return {"error": str(e), "status_code": response.status_code}
-
 
 @mcp.tool()
 def read_api_docs() -> dict:
