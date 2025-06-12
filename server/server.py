@@ -14,6 +14,21 @@ BASE_URL = "https://data.ademe.fr/data-fair/api/v1/datasets/agribalyse-31-synthe
 # ---------------------------
 # -------- RESOURCES --------
 # ---------------------------
+@mcp.resource("agribalyse://api-docs")
+def agribalyse_api_docs() -> dict:
+    """Retrieve the full OpenAPI specification of the Agribalyse API."""
+    response = requests.get(f"{BASE_URL}/api-docs.json")
+    try:
+        response.raise_for_status()
+        return response.json()
+    except requests.HTTPError as e:
+        return {"error": str(e), "status_code": response.status_code}
+
+@mcp.resource("agribalyse://files")
+def agribalyse_data_files() -> dict:
+    """List data files available through the ADEME API."""
+    response = requests.get(f"{BASE_URL}/data-files")
+    return response.json()
 
 @mcp.resource("agribalyse://fields")
 def agribalyse_field_list() -> list:
@@ -24,17 +39,6 @@ def agribalyse_field_list() -> list:
         "Livraison", "Approche_emballage_", "Préparation"
     ]
 
-@mcp.resource("agribalyse://files")
-def agribalyse_data_files() -> dict:
-    """List data files available through the ADEME API."""
-    response = requests.get(f"{BASE_URL}/data-files")
-    return response.json()
-
-@mcp.resource("agribalyse://sample-lines")
-def sample_lines() -> dict:
-    """Return a small sample of data lines from Agribalyse."""
-    response = requests.get(f"{BASE_URL}/lines", params={"page": 1, "size": 5})
-    return response.json()
 
 @mcp.resource("agribalyse://columns/sortables")
 def agribalyse_sortable_fields() -> list:
@@ -143,16 +147,38 @@ def read_lines(
     Retrieve data lines from the Agribalyse dataset via the ADEME public API.
 
     Arguments:
-    - page: page number (default is 1)
-    - size: number of results to return (max 10,000)
-    - sort: sorting criteria (e.g., 'Nom_du_Produit_en_Français,-DQR')
-    - select: columns to include in the result
-    - q: simple text search
-    - q_fields: columns to apply simple text search to
-    - qs: advanced Elasticsearch-style query
+    - page: Page number to retrieve (default: 1).
+    - size: Number of results to return per page (max: 10,000).
+    - sort: Sorting criteria as a comma-separated string  (prefix field with '-' for descending order).
+        Allowed fields for sorting:
+        - Code_AGB, Code_CIQUAL, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison, code_avion,
+        - Livraison, Approche_emballage_, Préparation, DQR, Score_unique_EF,
+        - Changement_climatique, Appauvrissement_de_la_couche_d'ozone,
+        - Rayonnements_ionisants, Formation_photochimique_d'ozone, Particules_fines,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_non-cancérogènes,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_cancérogènes,
+        - Acidification_terrestre_et_eaux_douces, Eutrophisation_eaux_douces,
+        - Eutrophisation_marine, Eutrophisation_terrestre,
+        - Écotoxicité_pour_écosystèmes_aquatiques_d'eau_douce,
+        - Utilisation_du_sol, Épuisement_des_ressources_eau,
+        - Épuisement_des_ressources_énergétiques, Épuisement_des_ressources_minéraux,
+        - Changement_climatique_-_émissions_biogéniques,
+        - Changement_climatique_-_émissions_fossiles,
+        - Changement_climatique_-_émissions_liées_au_changement_d'affectation_des_sols,
+        - _id, _i, _rand
+
+    - select: List of columns to include in the result. Same list as for `sort` (voir ci-dessus).
+    - q: Simple text search query applied across selected fields.
+        - Example: "pomme" will match any row containing 'pomme'.
+    - q_fields: List of fields to restrict simple text search. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - qs: Advanced query string using Elasticsearch-style query DSL for complex filtering.
 
     Returns:
-    - Dictionary containing API results
+    - Dictionary containing the paginated dataset rows matching the query parameters.
     """
     params = {
         "page": page,
@@ -192,16 +218,24 @@ def get_values(
     Get distinct values of a given field in the Agribalyse dataset.
 
     Arguments:
-    - field: the name of the field (required)
-    - size: number of values to return (default is 10)
-    - sort: sort order ('asc' or 'desc')
-    - q: simple text search
-    - q_mode: search mode ('simple' or 'complete')
-    - q_fields: columns to apply search to
-    - qs: advanced text search query
+    - field: Field name to get distinct values from. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+
+    - size: Number of values to return (1-1000, default: 10).
+    - sort: Sort order: "asc" for ascending, "desc" for descending.
+    - q: Simple text search query to filter values.
+    - q_mode: Search mode. Allowed values:
+        - simple, complete
+    - q_fields: List of fields to apply text search to. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - qs: Advanced query string using Elasticsearch-style query DSL for complex filtering.
 
     Returns:
-    - JSON list of distinct values
+    - JSON object with distinct values and their counts.
     """
     allowed_fields = [
         "Code_AGB", "Groupe_d'aliment", "Sous-groupe_d'aliment",
@@ -246,16 +280,35 @@ def get_metric_agg(
     Calculate a metric on a numeric column of the Agribalyse dataset.
 
     Arguments:
-    - metric: aggregation type (e.g., avg, sum, percentiles, stats, etc.)
-    - field: name of the target column
-    - percents: list of percentiles (comma-separated, for 'percentiles' metric)
-    - q: simple text search
-    - q_mode: search mode ('simple' or 'complete')
-    - q_fields: list of fields to apply text search to
-    - qs: advanced filter query (Elasticsearch syntax)
+    - metric: Aggregation type. Allowed values:
+        - avg, sum, min, max, stats, value_count, percentiles, cardinality
+    - field: Target column for aggregation. Allowed fields:
+        - DQR, Score_unique_EF, Changement_climatique,
+        - Appauvrissement_de_la_couche_d'ozone, Rayonnements_ionisants,
+        - Formation_photochimique_d'ozone, Particules_fines,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_non-cancérogènes,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_cancérogènes,
+        - Acidification_terrestre_et_eaux_douces, Eutrophisation_eaux_douces,
+        - Eutrophisation_marine, Eutrophisation_terrestre,
+        - Écotoxicité_pour_écosystèmes_aquatiques_d'eau_douce,
+        - Utilisation_du_sol, Épuisement_des_ressources_eau,
+        - Épuisement_des_ressources_énergétiques, Épuisement_des_ressources_minéraux,
+        - Changement_climatique_-_émissions_biogéniques,
+        - Changement_climatique_-_émissions_fossiles,
+        - Changement_climatique_-_émissions_liées_au_changement_d'affectation_des_sols
+
+    - percents: List of percentiles (comma-separated) required if metric = percentiles.
+    - q: Simple text search query.
+    - q_mode: Search mode. Allowed values:
+        - simple, complete
+    - q_fields: Fields for simple search. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - qs: Advanced query string using Elasticsearch-style query DSL.
 
     Returns:
-    - JSON result of the metric computation
+    - JSON result of the metric computation.
     """
     valid_metrics = [
         "avg", "sum", "min", "max", "stats", "value_count", "percentiles", "cardinality"
@@ -296,18 +349,37 @@ def get_simple_metrics_agg(
     qs: Optional[str] = None
 ) -> dict:
     """
-    Calculate simple metrics on one or multiple columns in the Agribalyse dataset.
+    Calculate multiple metrics on multiple numeric columns of the Agribalyse dataset.
 
     Arguments:
-    - metrics: list of metrics to compute (e.g., avg, sum, percentiles...)
-    - fields: target columns (if not provided, all numeric fields will be used)
-    - q: simple text search
-    - q_mode: search mode ('simple' or 'complete')
-    - q_fields: target fields for text search
-    - qs: advanced filter query (Elasticsearch syntax)
+    - metrics: List of metrics to compute. Allowed values:
+        - avg, sum, min, max, stats, value_count, percentiles, cardinality
+    - fields: Target columns for aggregation. Allowed fields:
+        - DQR, Score_unique_EF, Changement_climatique,
+        - Appauvrissement_de_la_couche_d'ozone, Rayonnements_ionisants,
+        - Formation_photochimique_d'ozone, Particules_fines,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_non-cancérogènes,
+        - Effets_toxicologiques_sur_la_santé_humaine___substances_cancérogènes,
+        - Acidification_terrestre_et_eaux_douces, Eutrophisation_eaux_douces,
+        - Eutrophisation_marine, Eutrophisation_terrestre,
+        - Écotoxicité_pour_écosystèmes_aquatiques_d'eau_douce,
+        - Utilisation_du_sol, Épuisement_des_ressources_eau,
+        - Épuisement_des_ressources_énergétiques, Épuisement_des_ressources_minéraux,
+        - Changement_climatique_-_émissions_biogéniques,
+        - Changement_climatique_-_émissions_fossiles,
+        - Changement_climatique_-_émissions_liées_au_changement_d'affectation_des_sols
+
+    - q: Simple text search query.
+    - q_mode: Search mode. Allowed values:
+        - simple, complete
+    - q_fields: Fields for simple search. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - qs: Advanced query string using Elasticsearch-style query DSL.
 
     Returns:
-    - Dictionary with aggregated results
+    - Dictionary with aggregated results.
     """
     url = f"{BASE_URL}/simple_metrics_agg"
     params = {"q_mode": q_mode}
@@ -341,18 +413,26 @@ def get_words_agg(
     qs: Optional[str] = None
 ) -> dict:
     """
-    Retrieve the most significant words from a textual field in Agribalyse.
+    Retrieve most significant word tokens from a textual field.
 
     Arguments:
-    - field: name of the target column (required)
-    - analysis: type of analysis ('lang' or 'standard')
-    - q: simple text search filter
-    - q_mode: search mode ('simple' or 'complete')
-    - q_fields: fields targeted by the search
-    - qs: advanced text search query
+    - field: Target column. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - analysis: Tokenization analysis mode. Allowed values:
+        - lang, standard
+    - q: Simple text search query.
+    - q_mode: Search mode. Allowed values:
+        - simple, complete
+    - q_fields: Fields for simple search. Allowed fields:
+        - Code_AGB, Groupe_d'aliment, Sous-groupe_d'aliment,
+        - Nom_du_Produit_en_Français, LCI_Name, code_saison,
+        - Livraison, Approche_emballage_, Préparation
+    - qs: Advanced query string using Elasticsearch-style query DSL.
 
     Returns:
-    - JSON result with frequent word tokens
+    - JSON result with frequent word tokens.
     """
     valid_fields = [
         "Code_AGB", "Groupe_d'aliment", "Sous-groupe_d'aliment",
@@ -394,10 +474,18 @@ def read_schema(
     calculated: Optional[str] = None
 ) -> dict:
     """
-    Fetch the detailed schema of the Agribalyse dataset columns.
+    Retrieve the full schema of the Agribalyse dataset columns.
+
+    Arguments:
+    - mimeType: Expected mime type of response (default: application/json).
+    - type: Optional filter for field types.
+    - format: Optional filter for field formats.
+    - capability: Optional capability filter.
+    - enum: Optional enumeration filter.
+    - calculated: Optional calculated field filter.
 
     Returns:
-    - List of columns with types, formats, capabilities, etc.
+    - Full schema description of dataset fields.
     """
     url = f"{BASE_URL}/schema"
     params = {"mimeType": mimeType}
@@ -430,10 +518,18 @@ def read_safe_schema(
     calculated: Optional[str] = None
 ) -> dict:
     """
-    Fetch a reduced (safe) schema version of the dataset, excluding sensitive or index-heavy content.
+    Retrieve a safe (reduced) schema version excluding sensitive or costly columns.
+
+    Arguments:
+    - mimeType: Expected mime type of response (default: application/json).
+    - type: Optional filter for field types.
+    - format: Optional filter for field formats.
+    - capability: Optional capability filter.
+    - enum: Optional enumeration filter.
+    - calculated: Optional calculated field filter.
 
     Returns:
-    - Minimal list of available columns
+    - Safe schema description of dataset fields.
     """
     url = f"{BASE_URL}/safe-schema"
     params = {"mimeType": mimeType}
@@ -449,23 +545,6 @@ def read_safe_schema(
         params["calculated"] = calculated
 
     response = requests.get(url, params=params)
-
-    try:
-        response.raise_for_status()
-        return response.json()
-    except requests.HTTPError as e:
-        return {"error": str(e), "status_code": response.status_code}
-
-@mcp.tool()
-def read_api_docs() -> dict:
-    """
-    Retrieve the full OpenAPI specification of the Agribalyse API.
-
-    Returns:
-    - JSON dictionary representing the OpenAPI spec
-    """
-    url = f"{BASE_URL}/api-docs.json"
-    response = requests.get(url)
 
     try:
         response.raise_for_status()
@@ -512,4 +591,4 @@ def explain_indicator(field: str) -> str:
     return f"Explain the environmental indicator {field} used in the Agribalyse dataset."
 
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    mcp.run(transport='sse')

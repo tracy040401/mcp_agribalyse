@@ -25,7 +25,7 @@ class MCPClient:
         """Start the MCP server and initialize the session."""
         # Determine command based on script type
         cmd = "python"
-        params = StdioServerParameters(command=cmd, args=["server/server.py"])
+        params = StdioServerParameters(command=cmd, args=["../server/server.py"])
 
         # Enter stdio_client and ClientSession contexts, keep open until cleanup
         read, write = await self.exit_stack.enter_async_context(stdio_client(params))
